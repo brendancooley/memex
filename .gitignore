@@ -28,3 +28,8 @@ htmlcov/
 
 # macOS
 .DS_Store
+
+.thoughts/
+
+# Docs
+site/
