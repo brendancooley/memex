@@ -112,7 +112,7 @@ EOF
 # =============================================================================
 install_python_deps() {
     info "Installing Python dependencies..."
-    uv sync --extra dev
+    uv sync --dev
     info "Python dependencies installed"
 }
 
