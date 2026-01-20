@@ -265,30 +265,25 @@ name = "memex"
 version = "0.1.0"
 source = { editable = "." }
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
+    { name = "mkdocs-material" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
     { name = "ty" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "mkdocs-material" },
-]
-
 [package.metadata]
-requires-dist = [
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9" },
-    { name = "ty", marker = "extra == 'dev'", specifier = ">=0.0.12" },
-]
-provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "mkdocs-material", specifier = ">=9.7.1" }]
+dev = [
+    { name = "mkdocs-material", specifier = ">=9.7.1" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-cov", specifier = ">=4.0" },
+    { name = "ruff", specifier = ">=0.9" },
+    { name = "ty", specifier = ">=0.0.12" },
+]
 
 [[package]]
 name = "mergedeep"
