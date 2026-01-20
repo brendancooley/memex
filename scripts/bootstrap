@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+#
+# Bootstrap script for memex development environment
+# Installs all required tools and sets up the project
+#
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+
+# Get the project root (parent of scripts directory)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+cd "$PROJECT_ROOT"
+
+# Check if running on macOS
+if [[ "$(uname)" != "Darwin" ]]; then
+    warn "This script is optimized for macOS. Some features may not work on $(uname)."
+fi
+
+# =============================================================================
+# Homebrew (macOS package manager)
+# =============================================================================
+install_homebrew() {
+    if command -v brew &>/dev/null; then
+        info "Homebrew already installed"
+        return 0
+    fi
+
+    info "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    # Add to path for this session (Apple Silicon vs Intel)
+    if [[ -f /opt/homebrew/bin/brew ]]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [[ -f /usr/local/bin/brew ]]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+    fi
+}
+
+# =============================================================================
+# direnv (environment management)
+# =============================================================================
+install_direnv() {
+    if command -v direnv &>/dev/null; then
+        info "direnv already installed"
+        return 0
+    fi
+
+    info "Installing direnv..."
+    brew install direnv
+
+    info "direnv installed. Add the following to your shell config:"
+    echo ""
+    echo '  # For bash (~/.bashrc):'
+    echo '  eval "$(direnv hook bash)"'
+    echo ""
+    echo '  # For zsh (~/.zshrc):'
+    echo '  eval "$(direnv hook zsh)"'
+    echo ""
+}
+
+# =============================================================================
+# uv (Python package manager from Astral)
+# =============================================================================
+install_uv() {
+    if command -v uv &>/dev/null; then
+        info "uv already installed ($(uv --version))"
+        return 0
+    fi
+
+    info "Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # Add to path for this session
+    export PATH="$HOME/.local/bin:$PATH"
+}
+
+# =============================================================================
+# .envrc for direnv
+# =============================================================================
+setup_envrc() {
+    local envrc_file="$PROJECT_ROOT/.envrc"
+
+    if [[ -f "$envrc_file" ]]; then
+        info ".envrc already exists"
+        return 0
+    fi
+
+    info "Creating .envrc..."
+    cat > "$envrc_file" << 'EOF'
+# direnv configuration for memex
+# uv run handles venv automatically - no activation needed
+
+# Add local scripts to PATH
+PATH_add scripts
+EOF
+
+    info ".envrc created. Run 'direnv allow' to activate."
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+main() {
+    echo ""
+    info "=== memex Development Environment Bootstrap ==="
+    echo ""
+
+    install_homebrew
+    install_direnv
+    install_uv
+    setup_envrc
+
+    echo ""
+    info "=== Bootstrap complete! ==="
+    echo ""
+    info "Next steps:"
+    echo "  1. Ensure direnv hook is in your shell config"
+    echo "  2. Run: direnv allow"
+    echo "  3. Run: bd onboard  (for issue tracking)"
+    echo ""
+}
+
+main "$@"
