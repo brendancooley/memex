@@ -34,4 +34,3 @@ Pattern detection examples:
 2. **Type annotations** are loaded automatically (common syntax + Python 3.13 specific features)
 3. **Additional patterns** may require extra loading (CLI patterns, subprocess)
 4. **Each file is self-contained** with complete guidance for its domain
-

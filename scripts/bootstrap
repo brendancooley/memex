@@ -117,6 +117,15 @@ install_python_deps() {
 }
 
 # =============================================================================
+# Pre-commit hooks
+# =============================================================================
+install_precommit() {
+    info "Installing pre-commit hooks..."
+    uvx pre-commit install
+    info "Pre-commit hooks installed"
+}
+
+# =============================================================================
 # Main
 # =============================================================================
 main() {
@@ -129,6 +138,7 @@ main() {
     install_uv
     setup_envrc
     install_python_deps
+    install_precommit
 
     echo ""
     info "=== Bootstrap complete! ==="
