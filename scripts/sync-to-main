@@ -4,11 +4,21 @@ set -euo pipefail
 # Sync develop branch to main via PR
 #
 # Usage:
-#   ./scripts/sync-to-main           # Create PR from develop → main
+#   ./scripts/sync-to-main           # Create PR from develop → main (interactive)
 #   ./scripts/sync-to-main --post    # Run after PR is merged to sync back
+#
+# Options:
+#   -t, --title "..."    PR title (skips prompt)
+#   -d, --desc "..."     PR description/summary (skips prompt)
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
+
+# Defaults
+PR_TITLE=""
+PR_DESC=""
+DEFAULT_TITLE="release: sync develop to main"
+DEFAULT_DESC="Periodic sync of develop branch to main."
 
 post_merge() {
     echo "Syncing main back into develop..."
@@ -43,16 +53,28 @@ create_pr() {
         exit 1
     fi
 
+    # Prompt for title if not provided via flag
+    if [ -z "$PR_TITLE" ]; then
+        read -p "PR title [$DEFAULT_TITLE]: " PR_TITLE
+        PR_TITLE="${PR_TITLE:-$DEFAULT_TITLE}"
+    fi
+
+    # Prompt for description if not provided via flag
+    if [ -z "$PR_DESC" ]; then
+        read -p "PR summary [$DEFAULT_DESC]: " PR_DESC
+        PR_DESC="${PR_DESC:-$DEFAULT_DESC}"
+    fi
+
     gh pr create --base main --head develop \
-        --title "Release: sync develop to main" \
-        --body "$(cat <<'EOF'
+        --title "$PR_TITLE" \
+        --body "$(cat <<EOF
 ## Summary
 
-Periodic sync of develop branch to main.
+$PR_DESC
 
 ## After merging
 
-Run `./scripts/sync-to-main --post` to sync main back into develop.
+Run \`./scripts/sync-to-main --post\` to sync main back into develop.
 
 ---
 Use **"Create a merge commit"** (not squash) to preserve history.
@@ -64,11 +86,26 @@ EOF
     echo "  ./scripts/sync-to-main --post"
 }
 
-case "${1:-}" in
-    --post)
-        post_merge
-        ;;
-    *)
-        create_pr
-        ;;
-esac
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --post)
+            post_merge
+            exit 0
+            ;;
+        -t|--title)
+            PR_TITLE="$2"
+            shift 2
+            ;;
+        -d|--desc)
+            PR_DESC="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+create_pr
