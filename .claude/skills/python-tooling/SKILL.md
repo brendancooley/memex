@@ -265,23 +265,31 @@ Before completing project setup, verify:
 - [ ] `uv run ruff check .` passes without errors
 - [ ] `uv run pytest` discovers and runs tests successfully
 
-## Type Checking with Pyright
+## Type Checking with ty
+
+ty is Astral's type checker for Python, designed to work seamlessly with ruff and uv.
 
 ```bash
-uv add --dev pyright
+uv add --dev ty
 ```
 
 Run type checking:
 
 ```bash
-uv run pyright
+uv run ty check
 ```
 
-Configure in `pyproject.toml`:
+Configure in `ty.toml`:
 
 ```toml
-[tool.pyright]
-pythonVersion = "3.13"
+[environment]
+python-version = "3.13"
+extra-paths = ["src"]
+
+[rules]
+unresolved-attribute = "error"
+unresolved-import = "error"
+invalid-type-form = "error"
 ```
 
 ## CI/CD Configuration

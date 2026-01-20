@@ -1,0 +1,8 @@
+[environment]
+python-version = "3.13"
+extra-paths = ["src"]
+
+[rules]
+unresolved-attribute = "error"
+unresolved-import = "error"
+invalid-type-form = "error"

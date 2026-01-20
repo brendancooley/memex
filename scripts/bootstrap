@@ -108,6 +108,15 @@ EOF
 }
 
 # =============================================================================
+# Python dependencies
+# =============================================================================
+install_python_deps() {
+    info "Installing Python dependencies..."
+    uv sync --extra dev
+    info "Python dependencies installed"
+}
+
+# =============================================================================
 # Main
 # =============================================================================
 main() {
@@ -119,6 +128,7 @@ main() {
     install_direnv
     install_uv
     setup_envrc
+    install_python_deps
 
     echo ""
     info "=== Bootstrap complete! ==="
