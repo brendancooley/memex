@@ -8,13 +8,6 @@ requires-python = ">=3.13"
 authors = [{ name = "Brendan Cooley" }]
 dependencies = []
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-cov>=4.0",
-    "ruff>=0.9",
-    "ty>=0.0.12",
-]
 
 [build-system]
 requires = ["hatchling"]
@@ -42,4 +35,8 @@ exclude_lines = [
 [dependency-groups]
 dev = [
     "mkdocs-material>=9.7.1",
+    "pytest>=8.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.9",
+    "ty>=0.0.12",
 ]
