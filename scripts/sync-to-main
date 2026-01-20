@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Sync develop branch to main via PR
+#
+# Usage:
+#   ./scripts/sync-to-main           # Create PR from develop → main
+#   ./scripts/sync-to-main --post    # Run after PR is merged to sync back
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+post_merge() {
+    echo "Syncing main back into develop..."
+    git checkout develop
+    git pull origin develop
+    git fetch origin main
+    git merge origin/main -m "chore: sync with main"
+    git push origin develop
+    echo "Done. Branches are aligned."
+}
+
+create_pr() {
+    echo "Checking branch status..."
+    git fetch origin main develop
+
+    # Check if there are commits to sync
+    commits=$(git log --oneline origin/main..origin/develop | wc -l | tr -d ' ')
+    if [ "$commits" -eq 0 ]; then
+        echo "No commits to sync. develop and main are identical."
+        exit 0
+    fi
+
+    echo "Found $commits commit(s) to sync."
+    echo ""
+    git log --oneline origin/main..origin/develop
+    echo ""
+
+    read -p "Create PR to sync these to main? (y/N) " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Aborted."
+        exit 1
+    fi
+
+    gh pr create --base main --head develop \
+        --title "Release: sync develop to main" \
+        --body "$(cat <<'EOF'
+## Summary
+
+Periodic sync of develop branch to main.
+
+## After merging
+
+Run `./scripts/sync-to-main --post` to sync main back into develop.
+
+---
+Use **"Create a merge commit"** (not squash) to preserve history.
+EOF
+)"
+
+    echo ""
+    echo "PR created. After merging, run:"
+    echo "  ./scripts/sync-to-main --post"
+}
+
+case "${1:-}" in
+    --post)
+        post_merge
+        ;;
+    *)
+        create_pr
+        ;;
+esac
