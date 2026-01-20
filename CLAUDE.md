@@ -1,5 +1,20 @@
 # Principles
 
+## Workflow
+
+- commit to develop, human will do periodic syncs to main for review/release
+- keep commits small and atomic. aggressively break down larger tasks and create new issues to track unfinished work as needed
+- when instructions are not clear or unforseen obstacles are detected, always return to your supervisor (human or agent) for clarification
+- write user-facing documentation for all new features first. for most features, write tests next, and then implementation code
+- make all environmental changes reproducible via boostrap/etc scripts. new developers should always be able to reproduce the development enviroment programmatically on a new machine.
+
+## Stack
+
+- astral stack for tooling: `uv`, `ruff`, `ty`
+  - lint and typecheck aggressively, add optional rules to steer agents toward best practices and thoughtful abstractions
+- modern (typed) python, load the dignified-python-313 skill when developing
+- direnv for environment management
+
 # Agent Instructions (Beads)
 
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
