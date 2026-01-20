@@ -1,3 +1,13 @@
+# Project Vision
+
+Memex is a personal knowledge system—a second brain you talk to like your first.
+
+Two pillars: a **structured database** for queryable entities (people, events, todos) and an **unstructured scratchpad** for exploratory thinking (markdown docs with wikilinks). An LLM serves as the interface—you speak naturally, it files and retrieves.
+
+Key insight: **writes are casual, reads are synthesized.** Jot fragments as they come. When you need context for a decision, the system weaves those fragments into a coherent picture.
+
+The schema evolves through use—no upfront design. The first time you mention a person, it proposes a Person table.
+
 # Principles
 
 ## Workflow
