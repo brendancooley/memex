@@ -22,6 +22,15 @@ The schema evolves through use—no upfront design. The first time you mention a
 
 - conventional commits
 
+## Testing
+
+- test structure mirrors src structure: `tests/` should reflect `src/memex/` hierarchy
+  - `src/memex/db/` → `tests/db/`
+  - `src/memex/ops/schema.py` → `tests/ops/test_schema.py`
+- each module gets a corresponding test module
+- use `pytest` fixtures for shared setup (db connections, temp directories)
+- for LLM agent tests, use pydantic-ai's `TestModel` to mock responses deterministically
+
 ## Stack
 
 - astral stack for tooling: `uv`, `ruff`, `ty`
