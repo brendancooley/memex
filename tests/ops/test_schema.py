@@ -52,8 +52,8 @@ class TestCreateTable:
         op = CreateTable(
             table="people",
             columns=[
-                ColumnDef(name="id", type="integer", nullable=False),
                 ColumnDef(name="name", type="text"),
+                ColumnDef(name="email", type="text"),
             ],
         )
         assert op.table == "people"
@@ -63,6 +63,22 @@ class TestCreateTable:
         """Rejects table with no columns."""
         with pytest.raises(ValueError):
             CreateTable(table="empty", columns=[])
+
+    def test_rejects_id_column(self) -> None:
+        """Rejects 'id' column since it's auto-managed."""
+        with pytest.raises(ValueError, match="auto-managed"):
+            CreateTable(
+                table="people",
+                columns=[ColumnDef(name="id", type="integer")],
+            )
+
+    def test_rejects_id_column_case_insensitive(self) -> None:
+        """Rejects 'ID' column (case insensitive)."""
+        with pytest.raises(ValueError, match="auto-managed"):
+            CreateTable(
+                table="people",
+                columns=[ColumnDef(name="ID", type="integer")],
+            )
 
 
 class TestAddColumn:
@@ -381,7 +397,7 @@ class TestSchemaOpUnion:
     def test_transpile_accepts_union_type(self) -> None:
         """Transpile accepts any SchemaOp union member."""
         ops: list[SchemaOp] = [
-            CreateTable(table="t", columns=[ColumnDef(name="id", type="integer")]),
+            CreateTable(table="t", columns=[ColumnDef(name="name", type="text")]),
             AddColumn(table="t", column="f", type="text"),
             DropColumn(table="t", column="f"),
         ]

@@ -75,10 +75,16 @@ class CreateTable(BaseModel):
         return _validate_name(v, "table")
 
     @model_validator(mode="after")
-    def validate_has_columns(self) -> "CreateTable":
-        """Validate that at least one column is defined."""
+    def validate_columns(self) -> "CreateTable":
+        """Validate columns: at least one required, 'id' forbidden (auto-managed)."""
         if not self.columns:
             raise ValueError("Table must have at least one column")
+        for col in self.columns:
+            if col.name.lower() == "id":
+                raise ValueError(
+                    "Column 'id' is auto-managed and cannot be specified; "
+                    "it is added automatically as PRIMARY KEY"
+                )
         return self
 
 
