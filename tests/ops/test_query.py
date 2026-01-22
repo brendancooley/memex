@@ -78,6 +78,41 @@ class TestInsertModel:
         assert insert.table == "users"
         assert insert.data == {"name": "Alice", "email": "alice@test.com"}
 
+    def test_insert_rejects_empty_table_name(self) -> None:
+        """Insert model rejects empty table name."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Insert(table="", data={"name": "Alice"})
+
+    def test_insert_rejects_table_name_with_spaces(self) -> None:
+        """Insert model rejects table name with spaces."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Insert(table="user table", data={"name": "Alice"})
+
+    def test_insert_rejects_table_name_with_special_chars(self) -> None:
+        """Insert model rejects table name with special characters."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Insert(table="users; DROP TABLE users;--", data={"name": "Alice"})
+
+    def test_insert_rejects_table_name_starting_with_digit(self) -> None:
+        """Insert model rejects table name starting with digit."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Insert(table="123users", data={"name": "Alice"})
+
+    def test_insert_rejects_empty_data(self) -> None:
+        """Insert model rejects empty data dict."""
+        with pytest.raises(ValueError, match="data cannot be empty"):
+            Insert(table="users", data={})
+
+    def test_insert_rejects_invalid_column_name(self) -> None:
+        """Insert model rejects invalid column name in data dict."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Insert(table="users", data={"user name": "Alice"})
+
+    def test_insert_rejects_column_name_with_special_chars(self) -> None:
+        """Insert model rejects column name with special characters."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Insert(table="users", data={"name; DROP TABLE users;--": "Alice"})
+
 
 class TestUpdateModel:
     """Tests for Update model."""
@@ -89,6 +124,36 @@ class TestUpdateModel:
         assert update.id == 1
         assert update.data == {"name": "Bob"}
 
+    def test_update_rejects_empty_table_name(self) -> None:
+        """Update model rejects empty table name."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Update(table="", id=1, data={"name": "Bob"})
+
+    def test_update_rejects_table_name_with_spaces(self) -> None:
+        """Update model rejects table name with spaces."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Update(table="user table", id=1, data={"name": "Bob"})
+
+    def test_update_rejects_table_name_with_special_chars(self) -> None:
+        """Update model rejects table name with special characters."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Update(table="users; DROP TABLE users;--", id=1, data={"name": "Bob"})
+
+    def test_update_rejects_empty_data(self) -> None:
+        """Update model rejects empty data dict."""
+        with pytest.raises(ValueError, match="data cannot be empty"):
+            Update(table="users", id=1, data={})
+
+    def test_update_rejects_invalid_column_name(self) -> None:
+        """Update model rejects invalid column name in data dict."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Update(table="users", id=1, data={"user name": "Bob"})
+
+    def test_update_rejects_column_name_with_special_chars(self) -> None:
+        """Update model rejects column name with special characters."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Update(table="users", id=1, data={"name; DROP TABLE users;--": "Bob"})
+
 
 class TestDeleteModel:
     """Tests for Delete model."""
@@ -98,6 +163,21 @@ class TestDeleteModel:
         delete = Delete(table="users", id=1)
         assert delete.table == "users"
         assert delete.id == 1
+
+    def test_delete_rejects_empty_table_name(self) -> None:
+        """Delete model rejects empty table name."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Delete(table="", id=1)
+
+    def test_delete_rejects_table_name_with_spaces(self) -> None:
+        """Delete model rejects table name with spaces."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Delete(table="user table", id=1)
+
+    def test_delete_rejects_table_name_with_special_chars(self) -> None:
+        """Delete model rejects table name with special characters."""
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            Delete(table="users; DROP TABLE users;--", id=1)
 
 
 class TestExecuteQuery:

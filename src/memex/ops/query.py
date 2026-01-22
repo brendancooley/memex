@@ -4,10 +4,31 @@ Provides typed models for CRUD operations and an executor function
 that generates and runs parameterized SQL against SQLite connections.
 """
 
+import re
 import sqlite3
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
+
+# Valid names: alphanumeric + underscore, cannot start with digit
+_VALID_NAME_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
+def _validate_name(name: str) -> str:
+    """Validate that a name is valid for a table or column.
+
+    Args:
+        name: The name to validate.
+
+    Returns:
+        The validated name.
+
+    Raises:
+        ValueError: If the name is invalid.
+    """
+    if not name or not _VALID_NAME_PATTERN.match(name):
+        raise ValueError(f"Invalid identifier: {name!r}")
+    return name
 
 
 class Query(BaseModel):
@@ -43,6 +64,21 @@ class Insert(BaseModel):
     table: str
     data: dict[str, Any]
 
+    @field_validator("table")
+    @classmethod
+    def validate_table_name(cls, v: str) -> str:
+        """Validate table name is alphanumeric + underscore."""
+        return _validate_name(v)
+
+    @model_validator(mode="after")
+    def validate_data(self) -> "Insert":
+        """Validate that data is non-empty and column names are valid."""
+        if not self.data:
+            raise ValueError("data cannot be empty")
+        for col in self.data:
+            _validate_name(col)
+        return self
+
 
 class Update(BaseModel):
     """An UPDATE operation for a single row by id.
@@ -57,6 +93,21 @@ class Update(BaseModel):
     id: int
     data: dict[str, Any]
 
+    @field_validator("table")
+    @classmethod
+    def validate_table_name(cls, v: str) -> str:
+        """Validate table name is alphanumeric + underscore."""
+        return _validate_name(v)
+
+    @model_validator(mode="after")
+    def validate_data(self) -> "Update":
+        """Validate that data is non-empty and column names are valid."""
+        if not self.data:
+            raise ValueError("data cannot be empty")
+        for col in self.data:
+            _validate_name(col)
+        return self
+
 
 class Delete(BaseModel):
     """A DELETE operation for a single row by id.
@@ -68,6 +119,12 @@ class Delete(BaseModel):
 
     table: str
     id: int
+
+    @field_validator("table")
+    @classmethod
+    def validate_table_name(cls, v: str) -> str:
+        """Validate table name is alphanumeric + underscore."""
+        return _validate_name(v)
 
 
 def execute(conn: sqlite3.Connection, op: Query | Insert | Update | Delete) -> Any:
