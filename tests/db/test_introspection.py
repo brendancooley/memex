@@ -112,6 +112,41 @@ class TestGetSchema:
             assert "users" in schema
             assert "active_users" not in schema
 
+    def test_table_name_with_space(self) -> None:
+        """Introspects table with space in name."""
+        db = Database(":memory:")
+        with db.connect() as conn:
+            conn.execute('CREATE TABLE "my table" (id INTEGER PRIMARY KEY, name TEXT)')
+
+            schema = get_schema(conn)
+
+            assert "my table" in schema
+            table = schema["my table"]
+            assert table.name == "my table"
+            assert len(table.columns) == 2
+            columns = {col.name: col for col in table.columns}
+            assert columns["id"].primary_key is True
+            assert columns["name"].type == "TEXT"
+
+    def test_table_name_with_double_quote(self) -> None:
+        """Introspects table with double quote in name."""
+        db = Database(":memory:")
+        with db.connect() as conn:
+            # Table name with embedded double quote: " -> ""
+            conn.execute(
+                'CREATE TABLE "my""table" (id INTEGER PRIMARY KEY, value REAL)'
+            )
+
+            schema = get_schema(conn)
+
+            assert 'my"table' in schema
+            table = schema['my"table']
+            assert table.name == 'my"table'
+            assert len(table.columns) == 2
+            columns = {col.name: col for col in table.columns}
+            assert columns["id"].primary_key is True
+            assert columns["value"].type == "REAL"
+
 
 class TestTableInfo:
     """Tests for TableInfo dataclass."""

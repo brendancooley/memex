@@ -78,7 +78,10 @@ def _get_columns(conn: sqlite3.Connection, table_name: str) -> list[ColumnInfo]:
     Returns:
         List of ColumnInfo objects for each column.
     """
-    cursor = conn.execute(f"PRAGMA table_info({table_name})")
+    # Quote table name for safety with special characters (spaces, quotes)
+    # Double quotes inside name must be escaped by doubling them
+    escaped_name = table_name.replace('"', '""')
+    cursor = conn.execute(f'PRAGMA table_info("{escaped_name}")')
     columns: list[ColumnInfo] = []
 
     for row in cursor.fetchall():
