@@ -80,7 +80,7 @@ class TestCreateTableTool:
     """Tests for the create_table tool."""
 
     def test_create_table_creates_table(self, deps: AgentDeps) -> None:
-        """Create table tool creates a table in the database."""
+        """Create table tool creates a table in the database with auto id column."""
         agent = create_agent()
 
         def model_fn(
@@ -95,11 +95,7 @@ class TestCreateTableTool:
                             args={
                                 "table": "person",
                                 "columns": [
-                                    {
-                                        "name": "id",
-                                        "type": "integer",
-                                        "nullable": False,
-                                    },
+                                    # id is auto-added by transpiler
                                     {"name": "name", "type": "text"},
                                     {"name": "address", "type": "text"},
                                 ],
@@ -115,6 +111,7 @@ class TestCreateTableTool:
         with deps.db.connect() as conn:
             schema = get_schema(conn)
             assert "person" in schema
+            # id is auto-added by transpiler
             assert schema["person"].column_by_name("id") is not None
             assert schema["person"].column_by_name("name") is not None
             assert schema["person"].column_by_name("address") is not None

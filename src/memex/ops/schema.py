@@ -136,8 +136,26 @@ _TYPE_MAP: dict[ColumnType, str] = {
 }
 
 
+def _column_def(col: ColumnDef) -> str:
+    """Convert a ColumnDef to SQL column definition string.
+
+    Args:
+        col: The column definition.
+
+    Returns:
+        SQL column definition (e.g., "name TEXT NOT NULL").
+    """
+    sql_type = _TYPE_MAP[col.type]
+    nullable_clause = "" if col.nullable else " NOT NULL"
+    return f"{col.name} {sql_type}{nullable_clause}"
+
+
 def _transpile_create_table(op: CreateTable) -> str:
     """Transpile CreateTable operation to SQL.
+
+    Always prepends an auto-increment id column for CRUD compatibility.
+    Insert uses cursor.lastrowid (works without explicit id), but
+    Update/Delete hardcode WHERE id = :id, requiring the id column.
 
     Args:
         op: The CreateTable operation.
@@ -145,14 +163,11 @@ def _transpile_create_table(op: CreateTable) -> str:
     Returns:
         CREATE TABLE SQL statement.
     """
-    column_defs = []
-    for col in op.columns:
-        sql_type = _TYPE_MAP[col.type]
-        nullable_clause = "" if col.nullable else " NOT NULL"
-        column_defs.append(f"    {col.name} {sql_type}{nullable_clause}")
-
-    columns_sql = ",\n".join(column_defs)
-    return f"CREATE TABLE {op.table} (\n{columns_sql}\n)"
+    # Always add id column first for CRUD compatibility
+    col_defs = ["id INTEGER PRIMARY KEY AUTOINCREMENT"]
+    col_defs.extend(_column_def(col) for col in op.columns)
+    columns_sql = ", ".join(col_defs)
+    return f"CREATE TABLE {op.table} ({columns_sql})"
 
 
 def _transpile_add_column(op: AddColumn) -> str:

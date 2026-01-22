@@ -162,22 +162,20 @@ class TestTranspile:
     """Tests for DDL transpilation."""
 
     def test_transpile_create_table(self) -> None:
-        """Transpiles CreateTable to CREATE TABLE SQL."""
+        """Transpiles CreateTable to CREATE TABLE SQL with auto id column."""
         op = CreateTable(
             table="people",
             columns=[
-                ColumnDef(name="id", type="integer", nullable=False),
                 ColumnDef(name="name", type="text"),
                 ColumnDef(name="active", type="boolean"),
             ],
         )
         sql = transpile(op)
         assert sql == (
-            "CREATE TABLE people (\n"
-            "    id INTEGER NOT NULL,\n"
-            "    name TEXT,\n"
-            "    active BOOLEAN\n"
-            ")"
+            "CREATE TABLE people ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "name TEXT, "
+            "active BOOLEAN)"
         )
 
     def test_transpile_create_table_all_types(self) -> None:
@@ -194,12 +192,52 @@ class TestTranspile:
             ],
         )
         sql = transpile(op)
+        # Auto-added id column should be present
+        assert "id INTEGER PRIMARY KEY AUTOINCREMENT" in sql
+        # User-defined columns should be present
         assert "col_text TEXT" in sql
         assert "col_integer INTEGER" in sql
         assert "col_real REAL" in sql
         assert "col_date DATE" in sql
         assert "col_datetime DATETIME" in sql
         assert "col_boolean BOOLEAN" in sql
+
+    def test_transpile_create_table_id_always_first(self) -> None:
+        """Auto-added id column is always first in CREATE TABLE."""
+        op = CreateTable(
+            table="items",
+            columns=[
+                ColumnDef(name="name", type="text"),
+                ColumnDef(name="value", type="integer"),
+            ],
+        )
+        sql = transpile(op)
+        # id column should appear at the start after the opening paren
+        expected_prefix = "CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT"
+        assert sql.startswith(expected_prefix)
+
+    def test_transpile_create_table_user_columns_after_id(self) -> None:
+        """User-defined columns come after the auto-added id column."""
+        op = CreateTable(
+            table="records",
+            columns=[
+                ColumnDef(name="first_col", type="text"),
+                ColumnDef(name="second_col", type="integer"),
+            ],
+        )
+        sql = transpile(op)
+        # Find positions of columns in the SQL
+        id_pos = sql.find("id INTEGER PRIMARY KEY AUTOINCREMENT")
+        first_pos = sql.find("first_col TEXT")
+        second_pos = sql.find("second_col INTEGER")
+
+        assert id_pos != -1, "id column not found"
+        assert first_pos != -1, "first_col not found"
+        assert second_pos != -1, "second_col not found"
+
+        # Verify ordering: id < first_col < second_col
+        assert id_pos < first_pos, "id should come before first_col"
+        assert first_pos < second_pos, "first_col should come before second_col"
 
     def test_transpile_add_column(self) -> None:
         """Transpiles AddColumn to ALTER TABLE SQL."""
@@ -226,33 +264,36 @@ class TestExecute:
     """Tests for schema executor."""
 
     def test_execute_create_table(self) -> None:
-        """Execute creates table in database."""
+        """Execute creates table in database with auto-added id column."""
         db = Database(":memory:")
         with db.connect() as conn:
             db.ensure_schema_ops(conn)
             op = CreateTable(
                 table="people",
                 columns=[
-                    ColumnDef(name="id", type="integer", nullable=False),
                     ColumnDef(name="name", type="text"),
+                    ColumnDef(name="email", type="text"),
                 ],
             )
             execute(db, conn, op)
 
             schema = get_schema(conn)
             assert "people" in schema
+            # Auto-added id column should exist
             assert schema["people"].column_by_name("id") is not None
+            # User-defined columns should exist
             assert schema["people"].column_by_name("name") is not None
+            assert schema["people"].column_by_name("email") is not None
 
     def test_execute_add_column(self) -> None:
         """Execute adds column to existing table."""
         db = Database(":memory:")
         with db.connect() as conn:
             db.ensure_schema_ops(conn)
-            # First create table
+            # First create table (id is auto-added)
             create_op = CreateTable(
                 table="people",
-                columns=[ColumnDef(name="id", type="integer")],
+                columns=[ColumnDef(name="name", type="text")],
             )
             execute(db, conn, create_op)
 
@@ -268,11 +309,11 @@ class TestExecute:
         db = Database(":memory:")
         with db.connect() as conn:
             db.ensure_schema_ops(conn)
-            # First create table with two columns
+            # First create table with columns (id is auto-added)
             create_op = CreateTable(
                 table="people",
                 columns=[
-                    ColumnDef(name="id", type="integer"),
+                    ColumnDef(name="name", type="text"),
                     ColumnDef(name="old_field", type="text"),
                 ],
             )
@@ -284,7 +325,9 @@ class TestExecute:
 
             schema = get_schema(conn)
             assert schema["people"].column_by_name("old_field") is None
+            # Auto-added id and user-defined name should remain
             assert schema["people"].column_by_name("id") is not None
+            assert schema["people"].column_by_name("name") is not None
 
     def test_execute_records_schema_op(self) -> None:
         """Execute records operation in _schema_ops table."""
@@ -293,7 +336,7 @@ class TestExecute:
             db.ensure_schema_ops(conn)
             op = CreateTable(
                 table="people",
-                columns=[ColumnDef(name="id", type="integer")],
+                columns=[ColumnDef(name="name", type="text")],
             )
             execute(db, conn, op)
 
@@ -310,10 +353,10 @@ class TestExecute:
         with db.connect() as conn:
             db.ensure_schema_ops(conn)
 
-            # Create table
+            # Create table (id is auto-added)
             create_op = CreateTable(
                 table="test",
-                columns=[ColumnDef(name="id", type="integer")],
+                columns=[ColumnDef(name="name", type="text")],
             )
             execute(db, conn, create_op)
 
