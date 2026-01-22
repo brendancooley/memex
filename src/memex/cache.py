@@ -58,16 +58,15 @@ def cached_llm[T](func: Callable[[str, str], T]) -> Callable[[str, str], T]:
         prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
         cache_key = f"{schema_hash}:{prompt_hash}"
 
-        # Check cache first (LBYL)
-        if cache_key in cache:
-            result: T = cache[cache_key]
-            cache.close()
-            return result
+        # Use context manager to ensure cache is closed even if func raises
+        with cache:
+            # Check cache first (LBYL)
+            if cache_key in cache:
+                return cache[cache_key]
 
-        # Cache miss - call function and store result
-        result = func(prompt, schema_hash)
-        cache[cache_key] = result
-        cache.close()
-        return result
+            # Cache miss - call function and store result
+            result = func(prompt, schema_hash)
+            cache[cache_key] = result
+            return result
 
     return wrapper

@@ -1,5 +1,6 @@
 """Tests for LLM response caching layer."""
 
+import contextlib
 import hashlib
 import os
 from pathlib import Path
@@ -178,3 +179,27 @@ class TestCachedLlm:
             # Verify cached result matches
             cached_result = expensive_call("test", "schema")
             assert cached_result == result
+
+    def test_cache_closed_even_when_function_raises(self, tmp_path: Path) -> None:
+        """Cache is properly closed even when the wrapped function raises."""
+
+        @cached_llm
+        def failing_call(_prompt: str, _schema_hash: str) -> str:
+            msg = "Simulated LLM failure"
+            raise RuntimeError(msg)
+
+        cache_dir = tmp_path / "cache"
+        with patch.dict(os.environ, {"MEMEX_CACHE_DIR": str(cache_dir)}):
+            # Call the function and expect it to raise
+            with contextlib.suppress(RuntimeError):
+                failing_call("test prompt", "schema123")
+
+            # Verify the cache file isn't locked by opening a new cache connection
+            # If the cache wasn't properly closed, this would fail or hang
+            cache = get_cache()
+            assert cache is not None
+
+            # We should be able to write to the cache (proves it's not locked)
+            cache["test_key"] = "test_value"
+            assert cache["test_key"] == "test_value"
+            cache.close()
