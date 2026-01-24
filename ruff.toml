@@ -22,6 +22,8 @@ select = [
     "RUF",    # ruff-specific
 ]
 ignore = [
+    "ANN002",   # missing type annotation for *args
+    "ANN003",   # missing type annotation for **kwargs
     "PLR0913",  # too many arguments - sometimes necessary
     "PLR2004",  # magic value comparison - too noisy
 ]
