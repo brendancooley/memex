@@ -146,7 +146,7 @@ install_python_deps() {
 # =============================================================================
 install_precommit() {
     info "Installing pre-commit hooks..."
-    uvx pre-commit install
+    uv run pre-commit install
     info "Pre-commit hooks installed"
 }
 
