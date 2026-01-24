@@ -487,6 +487,7 @@ class TestArchiveCommand:
             if "Created archive:" in line:
                 archive_name = line.split("Created archive:")[1].strip()
                 break
+        assert archive_name is not None, "Failed to parse archive name from output"
 
         # Try to restore but cancel
         result = runner.invoke(
