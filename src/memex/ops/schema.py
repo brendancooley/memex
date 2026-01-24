@@ -6,13 +6,17 @@ Provides structured schema modification operations that can be:
 3. Executed against the database with audit logging
 """
 
+from __future__ import annotations
+
 import re
-import sqlite3
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, field_validator, model_validator
 
-from memex.db.connection import Database
+if TYPE_CHECKING:
+    import sqlite3
+
+    from memex.db.connection import Database
 
 # Valid column types for SQLite
 ColumnType = Literal["text", "integer", "real", "date", "datetime", "boolean"]
@@ -75,7 +79,7 @@ class CreateTable(BaseModel):
         return _validate_name(v, "table")
 
     @model_validator(mode="after")
-    def validate_columns(self) -> "CreateTable":
+    def validate_columns(self) -> CreateTable:
         """Validate columns: at least one required, 'id' forbidden (auto-managed)."""
         if not self.columns:
             raise ValueError("Table must have at least one column")
