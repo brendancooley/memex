@@ -31,6 +31,9 @@ packages = ["src/memex"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore:There is no current event loop:DeprecationWarning:pydantic_ai",
+]
 
 [tool.coverage.run]
 source = ["src/memex"]
