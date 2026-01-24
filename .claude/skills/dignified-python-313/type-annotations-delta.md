@@ -9,16 +9,9 @@ For common type annotation guidance (Basic Collection Types, Union Types, Option
 
 ## Overview
 
-Python 3.13 implements PEP 649 (Deferred Evaluation of Annotations), fundamentally changing how annotations are evaluated. **The key change: forward references and circular imports work naturally without `from __future__ import annotations`.**
+Python 3.13 continues the modern typing features from 3.10-3.12. All type features from previous versions continue to work.
 
-All type features from previous versions (3.10-3.12) continue to work.
-
-**What's new in 3.13:**
-
-- PEP 649 deferred annotation evaluation
-- Forward references work naturally (no quotes, no `from __future__`)
-- Circular imports no longer cause annotation errors
-- **DO NOT use `from __future__ import annotations`**
+**Note on PEP 649:** Deferred evaluation of annotations (PEP 649/749) is scheduled for Python 3.14, NOT 3.13. For forward references in Python 3.13, use `from __future__ import annotations`.
 
 **Available from 3.12:**
 
@@ -28,6 +21,12 @@ All type features from previous versions (3.10-3.12) continue to work.
 **Available from 3.11:**
 
 - `Self` type for self-returning methods
+
+**For forward references in 3.13:**
+
+- Use `from __future__ import annotations` at the top of the file
+- This enables deferred evaluation, allowing unquoted forward references
+- Works well with static analysis tools (ruff, mypy, pyright)
 
 ## Self Type for Self-Returning Methods (3.11+)
 
@@ -186,69 +185,79 @@ Config = dict[str, str | int | bool]  # Still valid
 
 **Note**: `type` statement is more explicit and works better with generics.
 
-## Forward References and Circular Imports (NEW in 3.13)
+## Forward References in Python 3.13
 
-✅ **CORRECT** - Just works naturally with PEP 649:
+Python 3.13 does NOT have PEP 649 deferred evaluation yet (that's Python 3.14). For forward references, use `from __future__ import annotations`.
+
+✅ **CORRECT** - Use future annotations for forward references:
 
 ```python
-# Forward reference - no quotes needed!
+from __future__ import annotations
+
 class Node:
     def __init__(self, value: int, parent: Node | None = None):
         self.value = value
         self.parent = parent
 
-# Circular imports - just works!
-# a.py
-from b import B
-
-class A:
-    def method(self) -> B:
-        ...
-
-# b.py
-from a import A
-
-class B:
-    def method(self) -> A:
-        ...
-
-# Recursive types - no future needed!
-type JsonValue = dict[str, JsonValue] | list[JsonValue] | str | int | float | bool | None
+class Tree:
+    def __init__(self) -> None:
+        self.root: Node | None = None
 ```
 
-❌ **WRONG** - Don't use `from __future__ import annotations`:
+✅ **CORRECT** - Validator methods returning self type:
 
 ```python
-from __future__ import annotations  # DON'T DO THIS in Python 3.13
+from __future__ import annotations
+
+from pydantic import BaseModel, model_validator
+
+class CreateTable(BaseModel):
+    table: str
+    columns: list[str]
+
+    @model_validator(mode="after")
+    def validate_columns(self) -> CreateTable:  # No quotes needed!
+        if not self.columns:
+            raise ValueError("Must have at least one column")
+        return self
+```
+
+❌ **WRONG** - Quoted forward references (unnecessary with future annotations):
+
+```python
+from __future__ import annotations
 
 class Node:
-    def __init__(self, value: int, parent: Node | None = None):
+    # Don't use quotes when you have the future import
+    def method(self) -> "Node":  # ❌ Unnecessary quotes
         ...
 ```
 
-**Why avoid `from __future__ import annotations` in 3.13:**
+**Why use `from __future__ import annotations`:**
 
-- Unnecessary - PEP 649 provides better default behavior
-- Can cause confusion
-- Masks the native 3.13 deferred evaluation
-- Prevents you from leveraging improvements
+- Enables unquoted forward references
+- Works with static analysis tools (ruff, mypy, pyright)
+- Clean migration path to Python 3.14's native deferred evaluation
+- No runtime overhead (annotations stored as strings)
 
 ## Complete Examples
 
-### Tree Structure with Natural Forward References
+### Tree Structure with Forward References
 
 ```python
+from __future__ import annotations
+
 from typing import Self
 from collections.abc import Callable
 
 class Node[T]:
-    """Tree node - forward reference works naturally in 3.13!"""
+    """Tree node with forward references."""
 
     def __init__(
         self,
         value: T,
-        parent: Node[T] | None = None,  # Forward ref, no quotes!
-        children: list[Node[T]] | None = None,  # Forward ref, no quotes!
+        parent: Node[T] | None = None,
+        children: list[Node[T]] | None = None,
     ) -> None:
         self.value = value
         self.parent = parent
@@ -272,7 +281,7 @@ class Node[T]:
 
         return None
 
-# Usage - all type-safe with no __future__ import!
+# Usage
 root = Node[int](1)
 root.add_child(Node[int](2)).add_child(Node[int](3))
 ```
@@ -280,6 +289,8 @@ root.add_child(Node[int](2)).add_child(Node[int](3))
 ### Generic Repository with PEP 695
 
 ```python
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import Self
 
@@ -328,17 +339,17 @@ class UserRepository(Repository[User]):
         return True
 ```
 
-## Migration from 3.10/3.11
+## Migration from 3.10/3.11 to 3.13
 
 If migrating from Python 3.10/3.11:
 
-1. **Remove `from __future__ import annotations`** - No longer needed
-2. **Consider upgrading to PEP 695 syntax** - Cleaner generics
-3. **Use `type` statement for aliases** - More explicit than assignment
-4. **Remove quoted forward references** - They work naturally now
+1. **Keep `from __future__ import annotations`** - Still needed in 3.13 for forward refs
+2. **Consider upgrading to PEP 695 syntax** - Cleaner generics (3.12+)
+3. **Use `type` statement for aliases** - More explicit than assignment (3.12+)
+4. **Remove quoted forward references** - Use future annotations instead
 
 ```python
-# Python 3.10/3.11
+# Python 3.10/3.11 (old style)
 from __future__ import annotations
 from typing import TypeVar, Generic
 
@@ -348,13 +359,23 @@ class Node(Generic[T]):
     def __init__(self, value: T, parent: "Node[T] | None" = None):
         ...
 
-# Python 3.13
+# Python 3.13 (modernized)
+from __future__ import annotations
+
 from typing import Self
 
 class Node[T]:
     def __init__(self, value: T, parent: Node[T] | None = None):
         ...
 ```
+
+## Looking Ahead: Python 3.14
+
+Python 3.14 will implement PEP 649/749 (Deferred Evaluation of Annotations). At that point:
+
+- Forward references will work natively without `from __future__ import annotations`
+- The future import will become unnecessary (but won't break anything)
+- Annotations will be evaluated lazily by default
 
 ## What typing imports are still needed?
 

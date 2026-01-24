@@ -2,7 +2,11 @@
 python-version = "3.13"
 extra-paths = ["src"]
 
+[src]
+include = ["src", "tests"]
+
 [rules]
 unresolved-attribute = "error"
 unresolved-import = "error"
 invalid-type-form = "error"
+possibly-missing-attribute = "error"

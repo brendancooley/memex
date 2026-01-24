@@ -4,9 +4,13 @@ Provides typed models for CRUD operations and an executor function
 that generates and runs parameterized SQL against SQLite connections.
 """
 
+from __future__ import annotations
+
 import re
-import sqlite3
-from typing import Any
+from typing import TYPE_CHECKING, Any, overload
+
+if TYPE_CHECKING:
+    import sqlite3
 
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -71,7 +75,7 @@ class Insert(BaseModel):
         return _validate_name(v)
 
     @model_validator(mode="after")
-    def validate_data(self) -> "Insert":
+    def validate_data(self) -> Insert:
         """Validate that data is non-empty and column names are valid."""
         if not self.data:
             raise ValueError("data cannot be empty")
@@ -100,7 +104,7 @@ class Update(BaseModel):
         return _validate_name(v)
 
     @model_validator(mode="after")
-    def validate_data(self) -> "Update":
+    def validate_data(self) -> Update:
         """Validate that data is non-empty and column names are valid."""
         if not self.data:
             raise ValueError("data cannot be empty")
@@ -127,7 +131,25 @@ class Delete(BaseModel):
         return _validate_name(v)
 
 
-def execute(conn: sqlite3.Connection, op: Query | Insert | Update | Delete) -> Any:
+@overload
+def execute(conn: sqlite3.Connection, op: Query) -> list[tuple[Any, ...]]: ...
+
+
+@overload
+def execute(conn: sqlite3.Connection, op: Insert) -> int: ...
+
+
+@overload
+def execute(conn: sqlite3.Connection, op: Update) -> None: ...
+
+
+@overload
+def execute(conn: sqlite3.Connection, op: Delete) -> None: ...
+
+
+def execute(
+    conn: sqlite3.Connection, op: Query | Insert | Update | Delete
+) -> list[tuple[Any, ...]] | int | None:
     """Execute a database operation and return appropriate result.
 
     Args:
