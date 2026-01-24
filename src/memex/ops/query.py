@@ -6,7 +6,7 @@ that generates and runs parameterized SQL against SQLite connections.
 
 import re
 import sqlite3
-from typing import Any
+from typing import Any, overload
 
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -127,7 +127,25 @@ class Delete(BaseModel):
         return _validate_name(v)
 
 
-def execute(conn: sqlite3.Connection, op: Query | Insert | Update | Delete) -> Any:
+@overload
+def execute(conn: sqlite3.Connection, op: Query) -> list[tuple[Any, ...]]: ...
+
+
+@overload
+def execute(conn: sqlite3.Connection, op: Insert) -> int: ...
+
+
+@overload
+def execute(conn: sqlite3.Connection, op: Update) -> None: ...
+
+
+@overload
+def execute(conn: sqlite3.Connection, op: Delete) -> None: ...
+
+
+def execute(
+    conn: sqlite3.Connection, op: Query | Insert | Update | Delete
+) -> list[tuple[Any, ...]] | int | None:
     """Execute a database operation and return appropriate result.
 
     Args:

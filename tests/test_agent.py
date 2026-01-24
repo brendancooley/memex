@@ -14,6 +14,7 @@ from pydantic_ai.messages import (
     ModelResponse,
     TextPart,
     ToolCallPart,
+    ToolReturnPart,
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.models.test import TestModel
@@ -55,9 +56,9 @@ class TestAgentCreation:
         m = TestModel()
         with agent.override(model=m):
             agent.run_sync("test", deps=deps)
-            tool_names = [
-                t.name for t in m.last_model_request_parameters.function_tools
-            ]
+            params = m.last_model_request_parameters
+            assert params is not None
+            tool_names = [t.name for t in params.function_tools]
             assert "create_table" in tool_names
             assert "add_column" in tool_names
 
@@ -67,9 +68,9 @@ class TestAgentCreation:
         m = TestModel()
         with agent.override(model=m):
             agent.run_sync("test", deps=deps)
-            tool_names = [
-                t.name for t in m.last_model_request_parameters.function_tools
-            ]
+            params = m.last_model_request_parameters
+            assert params is not None
+            tool_names = [t.name for t in params.function_tools]
             assert "query" in tool_names
             assert "insert" in tool_names
             assert "update" in tool_names
@@ -138,6 +139,8 @@ class TestCreateTableTool:
                 )
             # Check tool return content
             tool_return = messages[-1].parts[0]
+            assert isinstance(tool_return, ToolReturnPart)
+            assert isinstance(tool_return.content, str)
             assert "success" in tool_return.content.lower()
             return ModelResponse(parts=[TextPart("Done")])
 
@@ -259,6 +262,8 @@ class TestInsertTool:
                 )
             # Extract row id from tool return
             tool_return = messages[-1].parts[0]
+            assert isinstance(tool_return, ToolReturnPart)
+            assert isinstance(tool_return.content, str)
             returned_id = tool_return.content
             return ModelResponse(parts=[TextPart("Done")])
 
@@ -310,6 +315,8 @@ class TestQueryTool:
                     ]
                 )
             tool_return = messages[-1].parts[0]
+            assert isinstance(tool_return, ToolReturnPart)
+            assert isinstance(tool_return.content, str)
             query_result = tool_return.content
             return ModelResponse(parts=[TextPart("Jose lives at 123 Oak St")])
 
@@ -609,6 +616,8 @@ class TestToolErrorHandling:
                     ]
                 )
             tool_return = messages[-1].parts[0]
+            assert isinstance(tool_return, ToolReturnPart)
+            assert isinstance(tool_return.content, str)
             error_message = tool_return.content
             return ModelResponse(parts=[TextPart("Sorry, that query failed")])
 
@@ -642,6 +651,8 @@ class TestToolErrorHandling:
                     ]
                 )
             tool_return = messages[-1].parts[0]
+            assert isinstance(tool_return, ToolReturnPart)
+            assert isinstance(tool_return.content, str)
             error_message = tool_return.content
             return ModelResponse(parts=[TextPart("Could not create table")])
 
