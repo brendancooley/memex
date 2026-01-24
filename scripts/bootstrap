@@ -85,6 +85,28 @@ install_uv() {
 }
 
 # =============================================================================
+# .env setup (copy from template if missing)
+# =============================================================================
+setup_env() {
+    local env_example="$PROJECT_ROOT/.env.example"
+    local env_file="$PROJECT_ROOT/.env"
+
+    if [[ -f "$env_file" ]]; then
+        info ".env already exists"
+        return 0
+    fi
+
+    if [[ ! -f "$env_example" ]]; then
+        warn ".env.example not found, skipping .env setup"
+        return 0
+    fi
+
+    info "Creating .env from .env.example..."
+    cp "$env_example" "$env_file"
+    warn "Please edit .env and add your ANTHROPIC_API_KEY"
+}
+
+# =============================================================================
 # .envrc for direnv
 # =============================================================================
 setup_envrc() {
@@ -99,6 +121,9 @@ setup_envrc() {
     cat > "$envrc_file" << 'EOF'
 # direnv configuration for memex
 # uv run handles venv automatically - no activation needed
+
+# Load environment variables from .env if it exists
+dotenv_if_exists
 
 # Add local scripts to PATH
 PATH_add scripts
@@ -121,7 +146,7 @@ install_python_deps() {
 # =============================================================================
 install_precommit() {
     info "Installing pre-commit hooks..."
-    uvx pre-commit install
+    uv run pre-commit install
     info "Pre-commit hooks installed"
 }
 
@@ -136,6 +161,7 @@ main() {
     install_homebrew
     install_direnv
     install_uv
+    setup_env
     setup_envrc
     install_python_deps
     install_precommit

@@ -10,7 +10,14 @@ dependencies = [
     "pydantic-ai>=0.1.0",
     "anthropic>=0.25.0",
     "diskcache>=5.6",
+    "click>=8.1",
+    "prompt-toolkit>=3.0",
+    "rich>=13.0",
 ]
+
+[project.scripts]
+mx = "memex.cli:main"
+memex = "memex.cli:main"
 
 
 [build-system]
@@ -24,6 +31,9 @@ packages = ["src/memex"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore:There is no current event loop:DeprecationWarning:pydantic_ai",
+]
 
 [tool.coverage.run]
 source = ["src/memex"]
@@ -39,6 +49,7 @@ exclude_lines = [
 [dependency-groups]
 dev = [
     "mkdocs-material>=9.7.1",
+    "pre-commit>=4.5.1",
     "pytest>=8.0",
     "pytest-cov>=4.0",
     "ruff>=0.9",

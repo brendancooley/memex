@@ -8,6 +8,22 @@ Personal knowledge management system.
 ./scripts/bootstrap
 ```
 
+## Environment Setup
+
+This project uses [direnv](https://direnv.net/) to load environment variables from `.env`. After installing direnv, add the shell hook:
+
+```bash
+# Add to ~/.zshrc (or ~/.bashrc for bash)
+grep -q "direnv hook" ~/.zshrc || echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+Then allow the project's `.envrc`:
+
+```bash
+direnv allow
+```
+
 ## Development
 
 ```bash
