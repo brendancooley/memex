@@ -6,6 +6,7 @@ Provides the `mx` command for interacting with memex:
     mx query    Direct SQL query
     mx status   Show schema summary
     mx reset    Destroy all data (with safeguards)
+    mx archive  Backup management (create/list/restore)
 """
 
 from __future__ import annotations
@@ -302,6 +303,101 @@ def reset(ctx: click.Context, confirm: bool, no_archive: bool) -> None:
         click.echo("History cleared")
 
     click.echo("Reset complete")
+
+
+def _get_archive_dir() -> Path:
+    """Return the archive directory path."""
+    return _get_memex_home() / "archive"
+
+
+def _list_archives() -> list[Path]:
+    """List all archive files, sorted by modification time (newest first)."""
+    archive_dir = _get_archive_dir()
+    if not archive_dir.exists():
+        return []
+    archives = list(archive_dir.glob("memex_*.db"))
+    return sorted(archives, key=lambda p: p.stat().st_mtime, reverse=True)
+
+
+@cli.command()
+@click.option(
+    "--list",
+    "list_archives",
+    is_flag=True,
+    help="List existing archives",
+)
+@click.option(
+    "--restore",
+    "restore_file",
+    type=str,
+    help="Restore from archive file (filename or full path)",
+)
+@click.pass_context
+def archive(ctx: click.Context, list_archives: bool, restore_file: str | None) -> None:
+    """Manage database backups.
+
+    Without options, creates a new timestamped backup.
+
+    \b
+    Examples:
+        mx archive              Create a backup
+        mx archive --list       List existing backups
+        mx archive --restore memex_20260123_120000.db
+    """
+    memex_home = _get_memex_home()
+    db_path: Path = ctx.obj["db_path"]
+
+    if list_archives:
+        archives = _list_archives()
+        if not archives:
+            click.echo("No archives found")
+            return
+
+        click.echo("Archives (newest first):")
+        for archive_path in archives:
+            stat = archive_path.stat()
+            size_kb = stat.st_size / 1024
+            mtime = datetime.fromtimestamp(stat.st_mtime)
+            mtime_str = mtime.strftime("%Y-%m-%d %H:%M")
+            click.echo(f"  {archive_path.name}  ({size_kb:.1f} KB, {mtime_str})")
+        return
+
+    if restore_file:
+        # Find the archive file
+        archive_dir = _get_archive_dir()
+        restore_path = Path(restore_file)
+
+        # If not absolute, look in archive directory
+        if not restore_path.is_absolute():
+            restore_path = archive_dir / restore_file
+
+        if not restore_path.exists():
+            click.echo(f"Error: Archive not found: {restore_path}", err=True)
+            raise SystemExit(1)
+
+        # Confirm before overwriting current database
+        if db_path.exists():
+            msg = f"Replace current database with {restore_path.name}?"
+            if not click.confirm(msg):
+                click.echo("Aborted")
+                return
+
+        # Restore the archive
+        shutil.copy2(restore_path, db_path)
+        click.echo(f"Restored from: {restore_path.name}")
+        return
+
+    # Default: create a new archive
+    if not db_path.exists():
+        click.echo("Nothing to archive (database does not exist)")
+        return
+
+    archive_path = _archive_memex_data(memex_home)
+    if archive_path:
+        click.echo(f"Created archive: {archive_path.name}")
+    else:
+        click.echo("Failed to create archive", err=True)
+        raise SystemExit(1)
 
 
 def main() -> None:

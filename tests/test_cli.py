@@ -327,3 +327,173 @@ class TestResetCommand:
         assert result.exit_code == 0
         assert "Database deleted" in result.output
         assert not (temp_memex_home / "memex.db").exists()
+
+
+class TestArchiveCommand:
+    """Test mx archive command."""
+
+    def test_archive_no_database(
+        self, runner: CliRunner, temp_memex_home: Path
+    ) -> None:
+        """Archive with no database shows nothing to archive."""
+        result = runner.invoke(
+            cli,
+            ["archive"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+        assert result.exit_code == 0
+        assert "Nothing to archive" in result.output
+
+    def test_archive_creates_backup(
+        self, runner: CliRunner, temp_memex_home: Path
+    ) -> None:
+        """Archive creates a timestamped backup."""
+        # Create database
+        db = Database(temp_memex_home / "memex.db")
+        with db.connect() as conn:
+            db.ensure_schema_ops(conn)
+
+        result = runner.invoke(
+            cli,
+            ["archive"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+        assert result.exit_code == 0
+        assert "Created archive:" in result.output
+
+        # Archive should exist
+        archive_dir = temp_memex_home / "archive"
+        archives = list(archive_dir.glob("memex_*.db"))
+        assert len(archives) == 1
+
+    def test_archive_list_empty(self, runner: CliRunner, temp_memex_home: Path) -> None:
+        """Archive --list with no archives shows message."""
+        result = runner.invoke(
+            cli,
+            ["archive", "--list"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+        assert result.exit_code == 0
+        assert "No archives found" in result.output
+
+    def test_archive_list_shows_archives(
+        self, runner: CliRunner, temp_memex_home: Path
+    ) -> None:
+        """Archive --list shows existing archives."""
+        # Create database and archive it
+        db = Database(temp_memex_home / "memex.db")
+        with db.connect() as conn:
+            db.ensure_schema_ops(conn)
+
+        # Create an archive
+        runner.invoke(
+            cli,
+            ["archive"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+
+        result = runner.invoke(
+            cli,
+            ["archive", "--list"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+        assert result.exit_code == 0
+        assert "Archives" in result.output
+        assert "memex_" in result.output
+        assert "KB" in result.output
+
+    def test_archive_restore_missing_file(
+        self, runner: CliRunner, temp_memex_home: Path
+    ) -> None:
+        """Archive --restore with missing file shows error."""
+        result = runner.invoke(
+            cli,
+            ["archive", "--restore", "nonexistent.db"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+        assert result.exit_code == 1
+        assert "Archive not found" in result.output
+
+    def test_archive_restore_works(
+        self, runner: CliRunner, temp_memex_home: Path
+    ) -> None:
+        """Archive --restore restores the database."""
+        # Create database with data
+        db = Database(temp_memex_home / "memex.db")
+        with db.connect() as conn:
+            db.ensure_schema_ops(conn)
+            op = CreateTable(
+                table="person",
+                columns=[ColumnDef(name="name", type="text", nullable=False)],
+            )
+            schema_execute(db, conn, op)
+            conn.execute("INSERT INTO person (name) VALUES ('Alice')")
+
+        # Create archive
+        archive_result = runner.invoke(
+            cli,
+            ["archive"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+
+        # Get archive filename from output
+        archive_name = None
+        for line in archive_result.output.split("\n"):
+            if "Created archive:" in line:
+                archive_name = line.split("Created archive:")[1].strip()
+                break
+        assert archive_name is not None
+
+        # Modify database (delete Alice)
+        with db.connect() as conn:
+            conn.execute("DELETE FROM person")
+
+        # Restore from archive
+        result = runner.invoke(
+            cli,
+            ["archive", "--restore", archive_name],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+            input="y\n",
+        )
+        assert result.exit_code == 0
+        assert "Restored from:" in result.output
+
+        # Verify Alice is back
+        with db.connect() as conn:
+            cursor = conn.execute("SELECT name FROM person")
+            rows = cursor.fetchall()
+            assert len(rows) == 1
+            assert rows[0][0] == "Alice"
+
+    def test_archive_restore_aborts_on_cancel(
+        self, runner: CliRunner, temp_memex_home: Path
+    ) -> None:
+        """Archive --restore can be aborted."""
+        # Create database
+        db = Database(temp_memex_home / "memex.db")
+        with db.connect() as conn:
+            db.ensure_schema_ops(conn)
+
+        # Create archive
+        archive_result = runner.invoke(
+            cli,
+            ["archive"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+
+        # Get archive filename
+        archive_name = None
+        for line in archive_result.output.split("\n"):
+            if "Created archive:" in line:
+                archive_name = line.split("Created archive:")[1].strip()
+                break
+
+        # Try to restore but cancel
+        result = runner.invoke(
+            cli,
+            ["archive", "--restore", archive_name],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+            input="n\n",
+        )
+        assert result.exit_code == 0
+        assert "Aborted" in result.output
