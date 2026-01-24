@@ -207,3 +207,123 @@ class TestChatCommand:
         )
         assert result.exit_code == 1
         assert "ANTHROPIC_API_KEY" in result.output
+
+
+class TestResetCommand:
+    """Test mx reset command."""
+
+    def test_reset_no_database(self, runner: CliRunner, temp_memex_home: Path) -> None:
+        """Reset with no database shows nothing to reset."""
+        result = runner.invoke(
+            cli,
+            ["reset", "--confirm"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+        assert result.exit_code == 0
+        assert "Nothing to reset" in result.output
+
+    def test_reset_requires_confirmation(
+        self, runner: CliRunner, temp_memex_home: Path
+    ) -> None:
+        """Reset without --confirm prompts and can be aborted."""
+        # Create database
+        db = Database(temp_memex_home / "memex.db")
+        with db.connect() as conn:
+            db.ensure_schema_ops(conn)
+
+        # Simulate 'n' response to confirmation
+        result = runner.invoke(
+            cli,
+            ["reset"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+            input="n\n",
+        )
+        assert result.exit_code == 0
+        assert "Aborted" in result.output
+        # Database should still exist
+        assert (temp_memex_home / "memex.db").exists()
+
+    def test_reset_with_confirm_deletes_database(
+        self, runner: CliRunner, temp_memex_home: Path
+    ) -> None:
+        """Reset with --confirm deletes the database."""
+        # Create database
+        db = Database(temp_memex_home / "memex.db")
+        with db.connect() as conn:
+            db.ensure_schema_ops(conn)
+
+        assert (temp_memex_home / "memex.db").exists()
+
+        result = runner.invoke(
+            cli,
+            ["reset", "--confirm"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+        assert result.exit_code == 0
+        assert "Database deleted" in result.output
+        assert "Reset complete" in result.output
+        assert not (temp_memex_home / "memex.db").exists()
+
+    def test_reset_creates_archive(
+        self, runner: CliRunner, temp_memex_home: Path
+    ) -> None:
+        """Reset creates an archive before deleting."""
+        # Create database
+        db = Database(temp_memex_home / "memex.db")
+        with db.connect() as conn:
+            db.ensure_schema_ops(conn)
+
+        result = runner.invoke(
+            cli,
+            ["reset", "--confirm"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+        assert result.exit_code == 0
+        assert "Archived to:" in result.output
+
+        # Archive directory should exist with a file
+        archive_dir = temp_memex_home / "archive"
+        assert archive_dir.exists()
+        archives = list(archive_dir.glob("memex_*.db"))
+        assert len(archives) == 1
+
+    def test_reset_no_archive_skips_archiving(
+        self, runner: CliRunner, temp_memex_home: Path
+    ) -> None:
+        """Reset with --no-archive skips archiving."""
+        # Create database
+        db = Database(temp_memex_home / "memex.db")
+        with db.connect() as conn:
+            db.ensure_schema_ops(conn)
+
+        result = runner.invoke(
+            cli,
+            ["reset", "--confirm", "--no-archive"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+        )
+        assert result.exit_code == 0
+        assert "Archived to:" not in result.output
+        assert "Database deleted" in result.output
+
+        # Archive directory should not exist
+        archive_dir = temp_memex_home / "archive"
+        assert not archive_dir.exists()
+
+    def test_reset_interactive_confirmation(
+        self, runner: CliRunner, temp_memex_home: Path
+    ) -> None:
+        """Reset with 'y' response proceeds."""
+        # Create database
+        db = Database(temp_memex_home / "memex.db")
+        with db.connect() as conn:
+            db.ensure_schema_ops(conn)
+
+        result = runner.invoke(
+            cli,
+            ["reset"],
+            env={"MEMEX_HOME": str(temp_memex_home)},
+            input="y\n",
+        )
+        assert result.exit_code == 0
+        assert "Database deleted" in result.output
+        assert not (temp_memex_home / "memex.db").exists()

@@ -5,6 +5,7 @@ Provides the `mx` command for interacting with memex:
     mx chat     Explicit chat mode
     mx query    Direct SQL query
     mx status   Show schema summary
+    mx reset    Destroy all data (with safeguards)
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -206,6 +208,100 @@ def status(ctx: click.Context) -> None:
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         raise SystemExit(1) from None
+
+
+def _get_memex_home() -> Path:
+    """Return the memex home directory."""
+    memex_home = os.environ.get("MEMEX_HOME")
+    if memex_home:
+        return Path(memex_home)
+    return Path.home() / ".memex"
+
+
+def _archive_memex_data(memex_home: Path) -> Path | None:
+    """Archive memex data to the archive directory.
+
+    Creates a timestamped copy of the memex.db file in ~/.memex/archive/.
+
+    Args:
+        memex_home: Path to the memex home directory.
+
+    Returns:
+        Path to the archive file, or None if there was nothing to archive.
+    """
+    db_path = memex_home / "memex.db"
+    if not db_path.exists():
+        return None
+
+    archive_dir = memex_home / "archive"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    archive_path = archive_dir / f"memex_{timestamp}.db"
+    shutil.copy2(db_path, archive_path)
+
+    return archive_path
+
+
+@cli.command()
+@click.option(
+    "--confirm",
+    is_flag=True,
+    help="Skip confirmation prompt",
+)
+@click.option(
+    "--no-archive",
+    is_flag=True,
+    help="Skip archiving before reset (destructive)",
+)
+@click.pass_context
+def reset(ctx: click.Context, confirm: bool, no_archive: bool) -> None:
+    """Destroy all memex data.
+
+    By default, archives the database before deletion. Use --no-archive
+    to skip archiving (not recommended).
+
+    Requires --confirm flag or interactive confirmation.
+    """
+    memex_home = _get_memex_home()
+    db_path: Path = ctx.obj["db_path"]
+
+    # Check if there's anything to reset
+    if not db_path.exists():
+        click.echo("Nothing to reset (database does not exist)")
+        return
+
+    # Show what will be deleted
+    click.echo("This will DELETE all memex data:")
+    click.echo(f"  Database: {db_path}")
+
+    if not no_archive:
+        click.echo(f"  (Will archive to: {memex_home / 'archive'})")
+    else:
+        click.echo("  WARNING: --no-archive specified, data will be permanently lost!")
+
+    # Require confirmation
+    if not confirm and not click.confirm("\nAre you sure you want to proceed?"):
+        click.echo("Aborted")
+        return
+
+    # Archive first (unless --no-archive)
+    if not no_archive:
+        archive_path = _archive_memex_data(memex_home)
+        if archive_path:
+            click.echo(f"Archived to: {archive_path}")
+
+    # Delete the database
+    db_path.unlink()
+    click.echo("Database deleted")
+
+    # Also clean up history file
+    history_path = _get_history_path()
+    if history_path.exists():
+        history_path.unlink()
+        click.echo("History cleared")
+
+    click.echo("Reset complete")
 
 
 def main() -> None:
