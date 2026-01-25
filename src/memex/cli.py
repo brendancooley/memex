@@ -67,6 +67,7 @@ def _run_chat_loop(agent: Agent[AgentDeps, str], db: Database) -> None:
     console.print("[dim]Memex ready. Type 'exit' or Ctrl+D to quit.[/dim]\n")
 
     deps = AgentDeps(db=db)
+    message_history: list = []
 
     while True:
         try:
@@ -85,7 +86,10 @@ def _run_chat_loop(agent: Agent[AgentDeps, str], db: Database) -> None:
 
         try:
             with console.status("[dim]Thinking...[/dim]", spinner="dots"):
-                result = agent.run_sync(user_input, deps=deps)
+                result = agent.run_sync(
+                    user_input, deps=deps, message_history=message_history
+                )
+            message_history = list(result.all_messages())
             console.print()
             console.print(Markdown(result.output))
             console.print()
