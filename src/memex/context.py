@@ -4,6 +4,8 @@ Generates system prompts by combining base instructions with schema summaries
 and other context information for the LLM interface.
 """
 
+import datetime
+
 from memex.db.introspection import TableInfo
 
 
@@ -55,4 +57,5 @@ def build_system_prompt(
         Complete system prompt string ready for LLM context.
     """
     schema_summary = format_schema_summary(schema)
-    return f"{base_instructions}\n\n{schema_summary}"
+    today = datetime.date.today().strftime("%B %d, %Y")
+    return f"{base_instructions}\n\nToday's date: {today}\n\n{schema_summary}"
