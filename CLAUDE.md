@@ -18,7 +18,13 @@ The schema evolves through use—no upfront design. The first time you mention a
 - write user-facing documentation for all new features first. for most features, write tests next, and then implementation code. break into separate tasks for each level of the hierarchy as needed.
 - make all environmental changes reproducible via boostrap/etc scripts. new developers should always be able to reproduce the development enviroment programmatically on a new machine.
 
-## Hygeine
+## Documentation
+
+- `docs/` is for **user-facing** documentation (published via mkdocs)
+- `design/` is for **internal** design docs, specs, and planning artifacts
+- do not create documentation files unless explicitly requested
+
+## Hygiene
 
 - conventional commits
 
