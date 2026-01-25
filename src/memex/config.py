@@ -102,6 +102,12 @@ class MemexConfig(BaseSettings):
             if content.strip():
                 file_values = tomllib.loads(content)
 
-        # Env vars are handled automatically by pydantic-settings
-        # We just need to pass file values as overrides for defaults
-        return cls(**file_values)
+        # Only use file values for fields not set by env vars
+        # (env vars take precedence)
+        effective_values: dict[str, Any] = {}
+        for key, value in file_values.items():
+            env_key = f"MEMEX_{key.upper()}"
+            if env_key not in os.environ:
+                effective_values[key] = value
+
+        return cls(**effective_values)
