@@ -7,6 +7,7 @@ Provides the `mx` command for interacting with memex:
     mx status   Show schema summary
     mx reset    Destroy all data (with safeguards)
     mx archive  Backup management (create/list/restore)
+    mx config   View and modify configuration
 """
 
 from __future__ import annotations
@@ -19,12 +20,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
+import questionary
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from rich.console import Console
 from rich.markdown import Markdown
 
-from memex.agent import DEFAULT_MODEL, AgentDeps, create_agent
+from memex.agent import AgentDeps, create_agent
+from memex.config import MemexConfig, get_config_path
 from memex.db.connection import Database, get_db_path
 from memex.db.introspection import get_schema
 from memex.ops.query import Query
@@ -140,9 +143,11 @@ def chat(ctx: click.Context) -> None:
         )
         raise SystemExit(1)
 
+    cfg = MemexConfig.load()
+
     db_path: Path = ctx.obj["db_path"]
     db = Database(db_path)
-    agent = create_agent(DEFAULT_MODEL)
+    agent = create_agent(cfg.model)
 
     _run_chat_loop(agent, db)
 
@@ -399,6 +404,120 @@ def archive(ctx: click.Context, list_archives: bool, restore_file: str | None) -
     else:
         click.echo("Failed to create archive", err=True)
         raise SystemExit(1)
+
+
+@cli.group()
+def config() -> None:
+    """View and modify memex configuration."""
+
+
+@config.command("get")
+@click.argument("key", required=False)
+def config_get(key: str | None) -> None:
+    """Show configuration value(s).
+
+    \b
+    Examples:
+        mx config get          Show all settings
+        mx config get model    Show current model
+    """
+    cfg = MemexConfig.load()
+
+    if key is None:
+        click.echo(f"model = {cfg.model}")
+        click.echo(f"\n(Config file: {get_config_path()})")
+    elif key == "model":
+        click.echo(cfg.model)
+    else:
+        click.echo(f"Unknown config key: {key}", err=True)
+        raise SystemExit(1)
+
+
+@config.command("set")
+@click.argument("key")
+@click.argument("value", required=False)
+def config_set(key: str, value: str | None) -> None:
+    """Set a configuration value.
+
+    If value is omitted for 'model', shows an interactive picker.
+
+    \b
+    Examples:
+        mx config set model                          Interactive picker
+        mx config set model anthropic:claude-opus-4-20250514
+    """
+    if key != "model":
+        click.echo(f"Unknown config key: {key}", err=True)
+        raise SystemExit(1)
+
+    cfg = MemexConfig.load()
+
+    if value is None:
+        value = _interactive_model_picker(current=cfg.model)
+        if value is None:
+            click.echo("Cancelled")
+            return
+
+    # Validate before saving
+    try:
+        new_cfg = MemexConfig(model=value)
+    except ValueError as e:
+        click.echo(f"Invalid value: {e}", err=True)
+        raise SystemExit(1) from None
+
+    new_cfg.save()
+    click.echo(f"Set model = {value}")
+
+
+def _interactive_model_picker(current: str) -> str | None:
+    """Show interactive model selection.
+
+    Args:
+        current: Currently configured model.
+
+    Returns:
+        Selected model string, or None if cancelled.
+    """
+    choices = [
+        questionary.Choice(
+            "claude-sonnet-4 (recommended)",
+            value="anthropic:claude-sonnet-4-20250514",
+        ),
+        questionary.Choice(
+            "claude-opus-4",
+            value="anthropic:claude-opus-4-20250514",
+        ),
+        questionary.Choice(
+            "claude-haiku-3.5",
+            value="anthropic:claude-haiku-3-5-20241022",
+        ),
+        questionary.Separator(),
+        questionary.Choice(
+            "Other (enter manually)",
+            value="_other",
+        ),
+    ]
+
+    # Find if current is in choices
+    choice_values = [c.value for c in choices if hasattr(c, "value")]
+    default = current if current in choice_values else None
+
+    result = questionary.select(
+        "Select model:",
+        choices=choices,
+        default=default,
+    ).ask()
+
+    if result is None:
+        return None
+
+    if result == "_other":
+        result = questionary.text(
+            "Enter model (provider:model-id):",
+            default=current,
+        ).ask()
+
+    return result
 
 
 def main() -> None:
