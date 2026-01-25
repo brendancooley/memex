@@ -81,7 +81,8 @@ def _run_chat_loop(agent: Agent[AgentDeps, str], db: Database) -> None:
             break
 
         try:
-            result = agent.run_sync(user_input, deps=deps)
+            with console.status("[dim]Thinking...[/dim]", spinner="dots"):
+                result = agent.run_sync(user_input, deps=deps)
             console.print()
             console.print(Markdown(result.output))
             console.print()
